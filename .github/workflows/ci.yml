@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck (Bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: '.'
+          additional_files: 'zcl install.sh'
+
+  psscriptanalyzer:
+    name: PSScriptAnalyzer (PowerShell)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run PSScriptAnalyzer
+        uses: microsoft/psscriptanalyzer-action@v1.0
+        with:
+          path: 'zcl.ps1'
+          recurse: false
+
+  bats-tests:
+    name: BATS Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install BATS
+        uses: mig4/setup-bats@v1
+      - name: Run tests
+        run: bats tests/
+
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: [shellcheck, bats-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test --help
+        run: bash zcl --help
+      - name: Smoke test --version
+        run: bash zcl --version
+      - name: Smoke test --dry-run
+        run: |
+          ZAI_API_KEY="fake-key-12345" bash zcl --dry-run
