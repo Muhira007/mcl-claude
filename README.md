@@ -67,7 +67,7 @@ Claude Code.
                                               │  api.z.ai              │
                                               │  /api/anthropic   │
                                               │                        │
-                                              │  Model: glm-5.2        │
+                                              │  Model: glm-5.2[1m]    │
                                               │  Model: glm-4.7    │
                                               └────────────────────────┘
 ```
@@ -142,7 +142,7 @@ sequenceDiagram
 
     ZC->>ENV: set ANTHROPIC_BASE_URL="api.z.ai/api/anthropic"
     ZC->>ENV: set ANTHROPIC_AUTH_TOKEN="key-xxxxxxxx"
-    ZC->>ENV: set ANTHROPIC_MODEL="glm-5.2"
+    ZC->>ENV: set ANTHROPIC_MODEL="glm-5.2[1m]"
     ZC->>ENV: set API_TIMEOUT_MS="3000000"
     ZC->>ENV: set CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000"
 
@@ -150,7 +150,7 @@ sequenceDiagram
 
     loop Percakapan Claude Code
         CC->>ZAI: POST /api/anthropic/messages<br/>(Anthropic Messages API format)
-        ZAI-->>CC: streaming response<br/>(model: glm-5.2)
+        ZAI-->>CC: streaming response<br/>(model: glm-5.2[1m])
         CC-->>U: tampilkan response di terminal
     end
 ```
@@ -247,14 +247,15 @@ flowchart LR
 |----------|--------------|--------|
 | `ANTHROPIC_BASE_URL` | `https://api.z.ai/api/anthropic` | Mengarahkan Claude Code ke endpoint Z.ai |
 | `ANTHROPIC_AUTH_TOKEN` | `<Z.ai API key>` | Otentikasi ke Z.ai API |
-| `ANTHROPIC_DEFAULT_OPUS_MODEL` | `glm-5.2` | Pengganti Claude Opus 4 |
-| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `glm-5.2` | Pengganti Claude Sonnet 4 |
+| `ANTHROPIC_DEFAULT_OPUS_MODEL` | `glm-5.2[1m]` | Pengganti Claude Opus 4 |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `glm-5.2[1m]` | Pengganti Claude Sonnet 4 |
 | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | `glm-4.7` | Pengganti Claude Haiku |
 | `API_TIMEOUT_MS` | `3000000` | Timeout 50 menit — untuk long-thinking GLM-5.2 |
+| `ANTHROPIC_MODEL` | `<OPUS_SONNET>` | Model eksplisit — membantu stabilitas streaming |
 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `1000000` | Auto-compact 1M — cocok context GLM-5.2 |
 
-> ⚠️ `ANTHROPIC_MODEL` **tidak diset** — Z.ai merekomendasikan hanya menggunakan
-> variabel tier-specific (`DEFAULT_OPUS/SONNET/HAIKU`). Effort reasoning
+> ⚠️ `ANTHROPIC_MODEL` diset ke nilai yang sama dengan `DEFAULT_OPUS_MODEL`
+> untuk memastikan Claude Code mengirim model ID yang tepat. Effort reasoning
 > diatur via command `/effort` di dalam Claude Code session.
 >
 > ⚠️ `API_TIMEOUT_MS=3000000` (50 menit) direkomendasikan oleh Z.ai untuk
@@ -277,7 +278,7 @@ graph LR
     end
 
     subgraph "Model Z.ai GLM"
-        C1["glm-5.2<br/>744B MoE · 1M context"]
+        C1["glm-5.2[1m]<br/>744B MoE · 1M context"]
         C2["glm-4.7<br/>357B · 200K context"]
     end
 
@@ -357,7 +358,7 @@ Edit `~/.config/zcl/config`:
 
 ```ini
 ZAI_API_KEY=your-id.your-secret
-ZCL_OPUS_SONNET_MODEL=glm-5.2
+ZCL_OPUS_SONNET_MODEL=glm-5.2[1m]
 ZCL_HAIKU_MODEL=glm-4.7
 ZCL_TIMEOUT_MS=3000000
 ZCL_AUTO_COMPACT=1000000
@@ -368,7 +369,7 @@ ZCL_SAFE=0
 
 ```bash
 # Override model Opus/Sonnet untuk satu sesi
-ZCL_OPUS_SONNET_MODEL="glm-5.2" zcl "tulis kode"
+ZCL_OPUS_SONNET_MODEL="glm-5.2[1m]" zcl "tulis kode"
 
 # Override Haiku model
 ZCL_HAIKU_MODEL="glm-4.7" zcl --safe "review dokumentasi"
@@ -378,8 +379,8 @@ ZCL_HAIKU_MODEL="glm-4.7" zcl --safe "review dokumentasi"
 
 | Model ID | Karakteristik | Context |
 |----------|--------------|---------|
-| `glm-5.2` | **Default** — stabil, reasoning kuat, 1M context | 1M |
-| `glm-5.2[1m]` | Dengan suffix [1m] (opsional), 1M context | 1M |
+| `glm-5.2[1m]` | **Flagship**, reasoning terkuat, 1M context | 1M |
+| `glm-5.2` | Tanpa suffix [1m] | 1M |
 | `glm-4.7` | Varian cepat GLM-5, cocok untuk sub-agent | 200K |
 | `GLM-5.1` | Generasi sebelumnya, 200K context | 200K |
 | `glm-4.7` | Sangat murah (30B), alternatif hemat | 200K |
