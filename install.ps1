@@ -36,14 +36,21 @@ pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "$scriptPath" %*
 Write-Host "Installed: $scriptPath"
 Write-Host "Installed: $batchPath"
 
-# Check PATH
+# Check and update PATH automatically
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
 if ($userPath -split ';' -notcontains $Dest) {
     Write-Host ""
-    Write-Host "NOTE: $Dest is not on your user PATH."
-    Write-Host "Run this to add it (admin terminal):"
-    Write-Host "  [Environment]::SetEnvironmentVariable(`"PATH`", `$env:PATH + `";$Dest`", `"User`")"
-    Write-Host "Then restart your terminal and run: $CmdName"
+    Write-Host "Adding $Dest to your User PATH..."
+    
+    $newPath = if ([string]::IsNullOrWhiteSpace($userPath)) { $Dest } else { "$userPath;$Dest" }
+    [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+    
+    # Update current session PATH so it can be used immediately
+    $env:PATH = "$env:PATH;$Dest"
+    
+    Write-Host "Successfully added to PATH!"
+    Write-Host "You can now run '$CmdName' right away."
 } else {
+    Write-Host ""
     Write-Host "Ready. Run: $CmdName"
 }
