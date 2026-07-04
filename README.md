@@ -380,11 +380,15 @@ ZCL_HAIKU_MODEL="glm-4.7" zcl --safe "review dokumentasi"
 | Model ID | Karakteristik | Context |
 |----------|--------------|---------|
 | `glm-5.2[1m]` | **Flagship**, reasoning terkuat, 1M context | 1M |
-| `glm-5.2` | Tanpa suffix [1m] | 1M |
-| `glm-4.7` | Varian cepat GLM-5, cocok untuk sub-agent | 200K |
-| `GLM-5.1` | Generasi sebelumnya, 200K context | 200K |
-| `glm-4.7` | Sangat murah (30B), alternatif hemat | 200K |
-| `GLM-4.7-Flash` | **Gratis** (30B), untuk task sangat ringan | 200K |
+| `glm-5.2` | Varian tanpa suffix [1m], standar 1M context | 1M |
+| `glm-5.1` | Generasi model flagship sebelumnya | 200K |
+| `glm-5` | Model standar generasi 5 | 200K |
+| `glm-5-turbo` | Model GLM-5 berkecepatan tinggi | 200K |
+| `glm-4.7` | Model hemat & sangat cepat (30B), alternatif ringan | 200K |
+| `glm-4.6` | Model ringan generasi ke-4 | 200K |
+| `glm-4.5` | Model seimbang generasi ke-4 | 200K |
+| `glm-4-32b-0414-128k` | Varian khusus open-weight | 128K |
+| `GLM-4.7-Flash` | **Gratis** (30B), untuk task super ringan | 200K |
 
 > Cek [z.ai/model-api](https://z.ai/model-api) dan [docs.z.ai](https://docs.z.ai/guides/overview/pricing)
 > untuk model terbaru.
