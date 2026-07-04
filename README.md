@@ -232,6 +232,15 @@ flowchart LR
 
 | Prioritas | Sumber | Keterangan |
 |-----------|--------|------------|
+| Perintah Tambahan | Fungsi |
+|-------------------|--------|
+| `zcl model` | Memilih model Z.ai secara interaktif |
+| `zcl doctor` | Cek status sistem, koneksi, & API key |
+| `zcl clean` | Hapus direktori memori `.claude` lokal |
+| `zcl alias [c]` | Mendaftarkan shortcut Zcl di Bash/PowerShell |
+
+| Prioritas | Sumber | Keterangan |
+|-----------|--------|------------|
 | 1 | `zcl config <KEY>` | Diset langsung via CLI, tanpa prompt |
 | 2 | `~/.config/zcl/config` | Key yang disimpan dari run sebelumnya |
 | 3 | `$ZAI_API_KEY` | Environment variable — lalu disimpan otomatis |

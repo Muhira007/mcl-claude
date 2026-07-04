@@ -198,6 +198,9 @@ SUBCOMMANDS
   zcl verify             Verify the stored API key against Z.ai API
   zcl show-config        Print current configuration (key masked)
   zcl model              Interactively select the Z.ai model to use
+  zcl doctor             Run diagnostic checks
+  zcl clean              Clear local Claude Code cache/memory
+  zcl alias [NAME]       Create a shell shortcut (e.g. zcl alias c)
 
 KEY RESOLUTION ORDER
   1. zcl config <KEY>
@@ -379,6 +382,79 @@ handle_subcommand() {
       verify_key_api "$key" || true
       exit 0
       ;;
+    doctor)
+      say "--- Zcl Doctor ---"
+      local healthy=1
+      
+      if command -v node >/dev/null 2>&1; then
+        say "✓ Node.js installed ($(node -v))"
+      else
+        warn "✗ Node.js not found. Claude Code requires Node.js."
+        healthy=0
+      fi
+      
+      if command -v npm >/dev/null 2>&1; then
+        say "✓ npm installed ($(npm -v))"
+      else
+        warn "✗ npm not found."
+        healthy=0
+      fi
+      
+      if command -v claude >/dev/null 2>&1; then
+        say "✓ Claude Code installed ($(claude --version 2>/dev/null || echo "unknown"))"
+      else
+        warn "✗ Claude Code not found. Will prompt for auto-install on launch."
+        healthy=0
+      fi
+      
+      local key; key="$(read_key || true)"
+      if [ -n "$key" ]; then
+        say "✓ API Key is configured."
+        if curl -fsSL -X GET -H "Authorization: Bearer $key" --max-time 10 https://api.z.ai/api/paas/v4/models >/dev/null 2>&1; then
+          say "✓ API Key can reach Z.ai servers successfully."
+        else
+          warn "✗ API Key failed validation."
+          healthy=0
+        fi
+      else
+        warn "✗ No API Key set. Run 'zcl config'."
+        healthy=0
+      fi
+      
+      if [ "$healthy" -eq 1 ]; then
+        say "
+System is fully ready to use Zcl!"
+      else
+        warn "
+Some checks failed. Please fix the warnings above."
+      fi
+      exit 0
+      ;;
+    clean)
+      say "Clearing Claude Code memory/cache..."
+      if [ -d "./.claude" ]; then
+        rm -rf "./.claude"
+        say "✓ Removed local project memory (./.claude)"
+      else
+        say "✓ No local project memory found."
+      fi
+      exit 0
+      ;;
+    alias)
+      local aliasName="${2:-c}"
+      local rc_file=""
+      if [ -n "$ZSH_VERSION" ]; then
+        rc_file="$HOME/.zshrc"
+      elif [ -n "$BASH_VERSION" ]; then
+        rc_file="$HOME/.bashrc"
+      else
+        rc_file="$HOME/.bashrc"
+      fi
+      echo "alias $aliasName='zcl'" >> "$rc_file"
+      say "✓ Alias '$aliasName' for 'zcl' has been added to $rc_file"
+      say "Restart your terminal or run 'source $rc_file' to use it."
+      exit 0
+      ;;
     show-config|--show-config|show|--show)
       show_config
       ;;
@@ -437,6 +513,31 @@ while [ $# -gt 0 ]; do
 done
 
 debug "zcl v$VERSION starting"
+
+check_for_updates() {
+  local last_check_file="$CONFIG_DIR/last_update_check"
+  local current_time
+  current_time=$(date +%s)
+  
+  if [ -f "$last_check_file" ]; then
+    local last_check
+    last_check=$(cat "$last_check_file")
+    if [ $((current_time - last_check)) -lt 86400 ]; then
+      return 0
+    fi
+  fi
+  
+  if command -v curl >/dev/null 2>&1; then
+    local remote_ver
+    remote_ver=$(curl -fsSL --max-time 2 "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/VERSION" 2>/dev/null)
+    if [ -n "$remote_ver" ] && [ "$remote_ver" != "$VERSION" ] && [[ "$remote_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      printf "\033[33m\n🚀 New version of Zcl is available (%s)! Run 'zcl update' to install.\n\n\033[0m" "$remote_ver" >&2
+    fi
+  fi
+  echo "$current_time" > "$last_check_file"
+}
+check_for_updates &>/dev/null &
+
 debug "CONFIG_FILE=$CONFIG_FILE"
 debug "DRY_RUN=$DRY_RUN"
 debug "ZCL_SAFE=${ZCL_SAFE:-0}"

@@ -10,7 +10,7 @@
 
 $ErrorActionPreference = 'Stop'
 
-$Script:Version      = '1.0.0'
+$Script:Version      = '1.1.0'
 $Script:ConfigDir    = Join-Path $env:APPDATA 'zcl'
 $Script:ConfigFile   = Join-Path $Script:ConfigDir 'config'
 
@@ -186,6 +186,9 @@ SUBCOMMANDS
   zcl verify             Verify the stored API key against Z.ai API
   zcl show-config        Print current configuration (key masked)
   zcl model              Interactively select the Z.ai model to use
+  zcl doctor             Run diagnostic checks
+  zcl clean              Clear local Claude Code cache/memory
+  zcl alias [NAME]       Create a shell shortcut (e.g. zcl alias c)
 
 KEY RESOLUTION ORDER
   1. zcl config <KEY>
@@ -357,6 +360,78 @@ function Invoke-Subcommand {
       Test-KeyApi $key | Out-Null
       exit 0
     }
+    '^(doctor)$' {
+      Write-Say "--- Zcl Doctor ---"
+      $healthy = $true
+      
+      # Node.js check
+      if (Get-Command node -ErrorAction SilentlyContinue) {
+        $nodeVer = (node -v).Trim()
+        Write-Say "✓ Node.js installed ($nodeVer)"
+      } else {
+        Write-Warn "✗ Node.js not found. Claude Code requires Node.js."
+        $healthy = $false
+      }
+      
+      # npm check
+      if (Get-Command npm -ErrorAction SilentlyContinue) {
+        $npmVer = (npm -v).Trim()
+        Write-Say "✓ npm installed ($npmVer)"
+      } else {
+        Write-Warn "✗ npm not found."
+        $healthy = $false
+      }
+      
+      # claude check
+      if (Get-Command claude -ErrorAction SilentlyContinue) {
+        $claudeVer = (claude --version).Trim()
+        Write-Say "✓ Claude Code installed ($claudeVer)"
+      } else {
+        Write-Warn "✗ Claude Code not found. Will prompt for auto-install on launch."
+        $healthy = $false
+      }
+      
+      # API Key
+      $key = Get-Key
+      if ($key) {
+        Write-Say "✓ API Key is configured."
+        if (Test-KeyApi $key) {
+          Write-Say "✓ API Key can reach Z.ai servers successfully."
+        } else {
+          Write-Warn "✗ API Key failed validation."
+          $healthy = $false
+        }
+      } else {
+        Write-Warn "✗ No API Key set. Run 'zcl config'."
+        $healthy = $false
+      }
+      
+      if ($healthy) { Write-Say "`nSystem is fully ready to use Zcl!" }
+      else { Write-Warn "`nSome checks failed. Please fix the warnings above." }
+      exit 0
+    }
+    '^(clean)$' {
+      Write-Say "Clearing Claude Code memory/cache..."
+      $localClaude = Join-Path (Get-Location) ".claude"
+      if (Test-Path $localClaude) {
+        Remove-Item -Recurse -Force $localClaude
+        Write-Say "✓ Removed local project memory ($localClaude)"
+      } else {
+        Write-Say "✓ No local project memory found."
+      }
+      exit 0
+    }
+    '^(alias)$' {
+      $aliasName = if ($SubArgs.Count -gt 0) { $SubArgs[0] } else { 'c' }
+      if (-not (Test-Path $PROFILE)) {
+        New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+      }
+      $aliasCmd = "Set-Alias $aliasName zcl"
+      Add-Content -Path $PROFILE -Value "`n# Added by zcl`n$aliasCmd"
+      Write-Say "✓ Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
+      Write-Say "Restart your terminal or run '. `$PROFILE' to use it."
+      exit 0
+    }
     '^(show-config|--show-config|show|--show)$' {
       Show-Config
     }
@@ -397,6 +472,30 @@ while ($i -lt $args.Count) {
 }
 
 Write-DebugX "zcl v$Script:Version starting"
+
+# --- check for updates (async-like) ------------------------------------------
+function Check-For-Updates {
+  try {
+    $lastCheckFile = Join-Path $Script:ConfigDir "last_update_check"
+    $check = $true
+    if (Test-Path $lastCheckFile) {
+      $lastCheck = [datetime](Get-Content $lastCheckFile)
+      if ((Get-Date) -lt $lastCheck.AddDays(1)) { $check = $false }
+    }
+    if ($check) {
+      $resp = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/VERSION" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+      if ($resp.StatusCode -eq 200) {
+        $remoteVer = $resp.Content.Trim()
+        if ($remoteVer -ne $Script:Version -and $remoteVer -match '^\d+\.\d+\.\d+') {
+          Write-Host "`n🚀 New version of Zcl is available ($remoteVer)! Run 'zcl update' to install.`n" -ForegroundColor Yellow
+        }
+      }
+      (Get-Date).ToString("o") | Out-File -FilePath $lastCheckFile -Encoding ascii
+    }
+  } catch {}
+}
+Check-For-Updates
+
 Write-DebugX "CONFIG_FILE=$Script:ConfigFile"
 Write-DebugX "DRY_RUN=$dryRun"
 Write-DebugX "ZCL_SAFE=$(if ($env:ZCL_SAFE) { $env:ZCL_SAFE } else { '0' })"
@@ -448,7 +547,19 @@ if ($dryRun) {
 
 # --- launch ------------------------------------------------------------------
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
-  Write-ErrorX "claude CLI not found on PATH.`nInstall Claude Code first: https://docs.claude.com/en/docs/claude-code"
+  Write-Warn "claude CLI not found on PATH."
+  $ans = Read-Host "Would you like Zcl to automatically install Claude Code via npm? [Y/n]"
+  if ($ans -notmatch "^[nN]") {
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+      Write-ErrorX "npm is not installed! Please install Node.js first."
+    }
+    Write-Say "Installing @anthropic-ai/claude-code globally..."
+    npm install -g @anthropic-ai/claude-code
+    if ($LASTEXITCODE -ne 0) { Write-ErrorX "Installation failed." }
+    Write-Say "✓ Claude Code installed successfully."
+  } else {
+    Write-ErrorX "Install Claude Code manually: https://docs.claude.com/en/docs/claude-code"
+  }
 }
 
 # Env vars based on official Z.ai docs: https://docs.z.ai/devpack/tool/claude
