@@ -106,13 +106,13 @@ function Test-KeyApi {
       -SkipHttpErrorCheck `
       -ErrorAction SilentlyContinue
     if ($resp.StatusCode -eq 200) {
-      Write-Say '✓ API key is valid.'
+      Write-Say '[v] API key is valid.'
       return $true
     } elseif ($resp.StatusCode -eq 401) {
-      Write-Warn '✗ API key is invalid or expired (HTTP 401).'
+      Write-Warn '[x] API key is invalid or expired (HTTP 401).'
       return $false
     } elseif ($resp.StatusCode -eq 403) {
-      Write-Warn '✗ API key lacks permissions (HTTP 403).'
+      Write-Warn '[x] API key lacks permissions (HTTP 403).'
       return $false
     } else {
       Write-Warn "Unexpected response (HTTP $($resp.StatusCode)). Key may still work."
@@ -288,7 +288,7 @@ function Invoke-DryRun {
   if ($safeMode -ne '1') {
     Write-Host '⚠  --dangerously-skip-permissions is ENABLED (use --safe to disable)'
   } else {
-    Write-Host '✓  Safe mode: tools will require per-action approval'
+    Write-Host '[v]  Safe mode: tools will require per-action approval'
   }
   exit 0
 }
@@ -348,9 +348,9 @@ function Invoke-Subcommand {
     if (-not $key) { Write-ErrorX "No stored key. Run 'zcl config' first." }
     Write-Say "Stored key: $($key.Substring(0, [Math]::Min(5, $key.Length)))...$($key.Substring($key.Length - [Math]::Min(4, $key.Length))) ($($key.Length) chars)"
     if (Test-KeyFormat $key) {
-      Write-Say 'Format:  ✓'
+      Write-Say 'Format:  [v]'
     } else {
-      Write-Warn 'Format:  ✗ (unusual format)'
+      Write-Warn 'Format:  [x] (unusual format)'
     }
     Test-KeyApi $key | Out-Null
     exit 0
@@ -361,42 +361,42 @@ function Invoke-Subcommand {
     # Node.js check
     if (Get-Command node -ErrorAction SilentlyContinue) {
       $nodeVer = (node -v).Trim()
-      Write-Say "✓ Node.js installed ($nodeVer)"
+      Write-Say "[v] Node.js installed ($nodeVer)"
     } else {
-      Write-Warn "✗ Node.js not found. Claude Code requires Node.js."
+      Write-Warn "[x] Node.js not found. Claude Code requires Node.js."
       $healthy = $false
     }
     
     # npm check
     if (Get-Command npm -ErrorAction SilentlyContinue) {
       $npmVer = (npm -v).Trim()
-      Write-Say "✓ npm installed ($npmVer)"
+      Write-Say "[v] npm installed ($npmVer)"
     } else {
-      Write-Warn "✗ npm not found."
+      Write-Warn "[x] npm not found."
       $healthy = $false
     }
     
     # claude check
     if (Get-Command claude -ErrorAction SilentlyContinue) {
       $claudeVer = (claude --version).Trim()
-      Write-Say "✓ Claude Code installed ($claudeVer)"
+      Write-Say "[v] Claude Code installed ($claudeVer)"
     } else {
-      Write-Warn "✗ Claude Code not found. Will prompt for auto-install on launch."
+      Write-Warn "[x] Claude Code not found. Will prompt for auto-install on launch."
       $healthy = $false
     }
     
     # API Key
     $key = Get-Key
     if ($key) {
-      Write-Say "✓ API Key is configured."
+      Write-Say "[v] API Key is configured."
       if (Test-KeyApi $key) {
-        Write-Say "✓ API Key can reach Z.ai servers successfully."
+        Write-Say "[v] API Key can reach Z.ai servers successfully."
       } else {
-        Write-Warn "✗ API Key failed validation."
+        Write-Warn "[x] API Key failed validation."
         $healthy = $false
       }
     } else {
-      Write-Warn "✗ No API Key set. Run 'zcl config'."
+      Write-Warn "[x] No API Key set. Run 'zcl config'."
       $healthy = $false
     }
     
@@ -411,9 +411,9 @@ function Invoke-Subcommand {
     $localClaude = Join-Path (Get-Location) ".claude"
     if (Test-Path $localClaude) {
       Remove-Item -Recurse -Force $localClaude
-      Write-Say "✓ Removed local project memory ($localClaude)"
+      Write-Say "[v] Removed local project memory ($localClaude)"
     } else {
-      Write-Say "✓ No local project memory found."
+      Write-Say "[v] No local project memory found."
     }
     exit 0
   } elseif ($Cmd -match '^(alias)$') {
@@ -424,7 +424,7 @@ function Invoke-Subcommand {
     }
     $aliasCmd = "Set-Alias $aliasName zcl"
     Add-Content -Path $PROFILE -Value "`n# Added by zcl`n$aliasCmd"
-    Write-Say "✓ Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
+    Write-Say "[v] Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
     Write-Say "Restart your terminal or run . '$PROFILE' to use it."
     exit 0
   } elseif ($Cmd -match '^(show-config|--show-config|show|--show)$') {
@@ -550,7 +550,7 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
     Write-Say "Installing @anthropic-ai/claude-code globally..."
     npm install -g @anthropic-ai/claude-code
     if ($LASTEXITCODE -ne 0) { Write-ErrorX "Installation failed." }
-    Write-Say "✓ Claude Code installed successfully."
+    Write-Say "[v] Claude Code installed successfully."
   } else {
     Write-ErrorX "Install Claude Code manually: https://docs.claude.com/en/docs/claude-code"
   }
