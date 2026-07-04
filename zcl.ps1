@@ -385,7 +385,7 @@ while ($i -lt $args.Count) {
     '--safe'    { $env:ZCL_SAFE = '1'; $i++ }
     '--'        { $i++; for (; $i -lt $args.Count; $i++) { $passthrough.Add($args[$i]) | Out-Null }; break }
     default {
-      if ($args[$i] -match '^(config|--config|set-key|--set-key|change|--change|change-key|--change-key|reset|--reset|update|--update|upgrade|--upgrade|verify|--verify|show-config|--show-config|show|--show)$') {
+      if ($args[$i] -match '^(config|--config|set-key|--set-key|change|--change|change-key|--change-key|reset|--reset|model|models|--model|--models|update|--update|upgrade|--upgrade|verify|--verify|show-config|--show-config|show|--show)$') {
         $subArgs = @()
         for ($j = $i + 1; $j -lt $args.Count; $j++) { $subArgs += $args[$j] }
         Invoke-Subcommand -Cmd $args[$i] -SubArgs $subArgs

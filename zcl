@@ -425,7 +425,7 @@ while [ $# -gt 0 ]; do
       break
       ;;
     config|--config|set-key|--set-key|change|--change|change-key|--change-key|\
-    reset|--reset|update|--update|upgrade|--upgrade|\
+    reset|--reset|model|models|--model|--models|update|--update|upgrade|--upgrade|\
     verify|--verify|show-config|--show-config|show|--show)
       handle_subcommand "$@"
       ;;
