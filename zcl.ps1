@@ -362,8 +362,8 @@ while ($i -lt $args.Count) {
 Write-DebugX "zcl v$Script:Version starting"
 Write-DebugX "CONFIG_FILE=$Script:ConfigFile"
 Write-DebugX "DRY_RUN=$dryRun"
-Write-DebugX "ZCL_SAFE=$($env:ZCL_SAFE ?? '0')"
-Write-DebugX "ZCL_VERBOSE=$($env:ZCL_VERBOSE ?? '0')"
+Write-DebugX "ZCL_SAFE=$(if ($env:ZCL_SAFE) { $env:ZCL_SAFE } else { '0' })"
+Write-DebugX "ZCL_VERBOSE=$(if ($env:ZCL_VERBOSE) { $env:ZCL_VERBOSE } else { '0' })"
 
 # --- resolve the key ---------------------------------------------------------
 $key = Get-Key
