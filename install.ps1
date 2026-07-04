@@ -42,7 +42,7 @@ if ($userPath -split ';' -notcontains $Dest) {
     Write-Host ""
     Write-Host "NOTE: $Dest is not on your user PATH."
     Write-Host "Run this to add it (admin terminal):"
-    Write-Host '  [Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";" + $Dest + '", "User")'
+    Write-Host "  [Environment]::SetEnvironmentVariable(`"PATH`", `$env:PATH + `";$Dest`", `"User`")"
     Write-Host "Then restart your terminal and run: $CmdName"
 } else {
     Write-Host "Ready. Run: $CmdName"
