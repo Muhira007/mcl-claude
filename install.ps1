@@ -20,8 +20,9 @@ Write-Host "Installing $CmdName ($Version) to $Dest ..."
 
 New-Item -ItemType Directory -Force -Path $Dest | Out-Null
 
-# Download the PowerShell script
-$scriptUrl = "$RepoUrl/$CmdName.ps1"
+# Download the PowerShell script (with cache-buster to bypass GitHub CDN cache)
+$cacheBuster = [guid]::NewGuid().ToString().Substring(0, 8)
+$scriptUrl = "$RepoUrl/$CmdName.ps1?t=$cacheBuster"
 $scriptPath = Join-Path $Dest "$CmdName.ps1"
 Write-Host "Downloading $scriptUrl ..."
 Invoke-WebRequest -Uri $scriptUrl -OutFile $scriptPath
