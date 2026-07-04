@@ -212,6 +212,14 @@ ENVIRONMENT VARIABLES
   ZCL_HAIKU_MODEL               Haiku model (default: glm-4.7)
   ZCL_TIMEOUT_MS                API timeout in ms (default: 3000000 = 50 min)
   ZCL_AUTO_COMPACT              Auto-compact window (default: 1000000)
+MODEL INFO
+  Available Z.ai Models:
+    glm-5.2[1m], glm-5.2, glm-5.1, glm-5
+    glm-5-turbo, glm-4.7, glm-4.6, glm-4.5
+    glm-4-32b-0414-128k, GLM-4.7-Flash
+
+  Use /effort inside Claude Code to set reasoning effort.
+  GLM-5.2 maps: low/medium/high -> high, xhigh/max/ultracode -> max
 
 CONFIG FILE
   Path:  ~/.config/zcl/config   (chmod 600)
