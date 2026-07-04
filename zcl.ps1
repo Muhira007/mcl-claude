@@ -185,6 +185,7 @@ SUBCOMMANDS
   zcl update             Update to the latest version
   zcl verify             Verify the stored API key against Z.ai API
   zcl show-config        Print current configuration (key masked)
+  zcl model              Interactively select the Z.ai model to use
 
 KEY RESOLUTION ORDER
   1. zcl config <KEY>
@@ -306,6 +307,37 @@ function Invoke-Subcommand {
       } else {
         Write-Say 'No stored key to remove.'
       }
+      exit 0
+    }
+    '^(model|models|--model|--models)$' {
+      Write-Say "--- Z.ai Models ---"
+      Write-Say "1. glm-5.2[1m]  (Flagship, 1M context)"
+      Write-Say "2. glm-5.2      (Standard 1M context)"
+      Write-Say "3. glm-5.1      (Previous generation)"
+      Write-Say "4. glm-5        (Standard Gen 5)"
+      Write-Say "5. glm-5-turbo  (High speed)"
+      Write-Say "6. glm-4.7      (Fast & cheap, 200K)"
+      Write-Say "7. glm-4.6"
+      Write-Say "8. glm-4.5"
+      Write-Say "9. glm-4-32b-0414-128k"
+      Write-Say "10. GLM-4.7-Flash (Free, ultra fast)"
+      $choice = Read-Host "Select a model (1-10) [leave blank to cancel]"
+      $model = switch ($choice.Trim()) {
+        '1' { 'glm-5.2[1m]' }
+        '2' { 'glm-5.2' }
+        '3' { 'glm-5.1' }
+        '4' { 'glm-5' }
+        '5' { 'glm-5-turbo' }
+        '6' { 'glm-4.7' }
+        '7' { 'glm-4.6' }
+        '8' { 'glm-4.5' }
+        '9' { 'glm-4-32b-0414-128k' }
+        '10' { 'GLM-4.7-Flash' }
+        ''  { Write-Say "Cancelled."; exit 0 }
+        default { Write-ErrorX "Invalid choice."; exit 1 }
+      }
+      Write-Config 'ZCL_OPUS_SONNET_MODEL' $model
+      Write-Say "Default model has been set to: $model"
       exit 0
     }
     '^(update|--update|upgrade|--upgrade)$' {

@@ -197,6 +197,7 @@ SUBCOMMANDS
   zcl update             Update to the latest version
   zcl verify             Verify the stored API key against Z.ai API
   zcl show-config        Print current configuration (key masked)
+  zcl model              Interactively select the Z.ai model to use
 
 KEY RESOLUTION ORDER
   1. zcl config <KEY>
@@ -325,6 +326,38 @@ handle_subcommand() {
       else
         say "No stored key to remove."
       fi
+      exit 0
+      ;;
+    model|models|--model|--models)
+      say "--- Z.ai Models ---"
+      say "1. glm-5.2[1m]  (Flagship, 1M context)"
+      say "2. glm-5.2      (Standard 1M context)"
+      say "3. glm-5.1      (Previous generation)"
+      say "4. glm-5        (Standard Gen 5)"
+      say "5. glm-5-turbo  (High speed)"
+      say "6. glm-4.7      (Fast & cheap, 200K)"
+      say "7. glm-4.6"
+      say "8. glm-4.5"
+      say "9. glm-4-32b-0414-128k"
+      say "10. GLM-4.7-Flash (Free, ultra fast)"
+      printf "Select a model (1-10) [leave blank to cancel]: "
+      read -r choice
+      case "$choice" in
+        1) model="glm-5.2[1m]" ;;
+        2) model="glm-5.2" ;;
+        3) model="glm-5.1" ;;
+        4) model="glm-5" ;;
+        5) model="glm-5-turbo" ;;
+        6) model="glm-4.7" ;;
+        7) model="glm-4.6" ;;
+        8) model="glm-4.5" ;;
+        9) model="glm-4-32b-0414-128k" ;;
+        10) model="GLM-4.7-Flash" ;;
+        "") say "Cancelled."; exit 0 ;;
+        *) die "Invalid choice." ;;
+      esac
+      write_config "ZCL_OPUS_SONNET_MODEL" "$model"
+      say "Default model has been set to: $model"
       exit 0
       ;;
     update|--update|upgrade|--upgrade)
