@@ -39,7 +39,7 @@ download() {
 mkdir -p "$BIN_DIR"
 
 say "Installing $CMD_NAME ($VERSION) to $BIN_DIR ..."
-download "$REPO_URL/$CMD_NAME" "$BIN_DIR/$CMD_NAME"
+download "$REPO_URL/$CMD_NAME?v=$(date +%s)" "$BIN_DIR/$CMD_NAME"
 chmod +x "$BIN_DIR/$CMD_NAME"
 
 # --- checksum (informational) ------------------------------------------------

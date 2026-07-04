@@ -310,7 +310,7 @@ function Invoke-Subcommand {
     }
     '^(update|--update|upgrade|--upgrade)$' {
       Write-Say 'Updating zcl to the latest version...'
-      irm 'https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.ps1' | iex
+      irm "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.ps1?v=$([guid]::NewGuid().ToString().Substring(0, 8))" | iex
       exit 0
     }
     '^(verify|--verify)$' {

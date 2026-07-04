@@ -329,7 +329,7 @@ handle_subcommand() {
       ;;
     update|--update|upgrade|--upgrade)
       say "Updating zcl to the latest version..."
-      curl -fsSL "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.sh" | bash
+      curl -fsSL "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.sh?v=$(date +%s)" | bash
       exit $?
       ;;
     verify|--verify)
