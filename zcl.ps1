@@ -406,8 +406,7 @@ function Invoke-Subcommand {
         $healthy = $false
       }
       
-      if ($healthy) { Write-Say "`nSystem is fully ready to use Zcl!" }
-      else { Write-Warn "`nSome checks failed. Please fix the warnings above." }
+      if ($healthy) { Write-Say "`nSystem is fully ready to use Zcl!" } else { Write-Warn "`nSome checks failed. Please fix the warnings above." }
       exit 0
     }
     '^(clean)$' {
@@ -429,7 +428,7 @@ function Invoke-Subcommand {
       $aliasCmd = "Set-Alias $aliasName zcl"
       Add-Content -Path $PROFILE -Value "`n# Added by zcl`n$aliasCmd"
       Write-Say "✓ Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
-      Write-Say "Restart your terminal or run '. `$PROFILE' to use it."
+      Write-Say "Restart your terminal or run '. $($PROFILE)' to use it."
       exit 0
     }
     '^(show-config|--show-config|show|--show)$' {
