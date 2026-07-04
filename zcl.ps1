@@ -425,7 +425,7 @@ function Invoke-Subcommand {
     $aliasCmd = "Set-Alias $aliasName zcl"
     Add-Content -Path $PROFILE -Value "`n# Added by zcl`n$aliasCmd"
     Write-Say "✓ Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
-    Write-Say "Restart your terminal or run . `"$PROFILE`" to use it."
+    Write-Say "Restart your terminal or run . '$PROFILE' to use it."
     exit 0
   } elseif ($Cmd -match '^(show-config|--show-config|show|--show)$') {
     Show-Config
