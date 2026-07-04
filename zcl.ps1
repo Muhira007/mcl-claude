@@ -297,147 +297,142 @@ function Invoke-DryRun {
 function Invoke-Subcommand {
   param([string]$Cmd, [array]$SubArgs)
 
-  switch -Regex ($Cmd) {
-    '^(config|--config|set-key|--set-key|change|--change|change-key|--change-key)$' {
-      if ($SubArgs.Count -ge 1) { Save-Key $SubArgs[0] } else { Invoke-Setup }
-      Write-Say "Done. Run 'zcl' to start."
-      exit 0
+  if ($Cmd -match '^(config|--config|set-key|--set-key|change|--change|change-key|--change-key)$') {
+    if ($SubArgs.Count -ge 1) { Save-Key $SubArgs[0] } else { Invoke-Setup }
+    Write-Say "Done. Run 'zcl' to start."
+    exit 0
+  } elseif ($Cmd -match '^(reset|--reset)$') {
+    if (Test-Path $Script:ConfigFile) {
+      Remove-Item $Script:ConfigFile -Force
+      Write-Say "Stored key removed ($Script:ConfigFile)."
+    } else {
+      Write-Say 'No stored key to remove.'
     }
-    '^(reset|--reset)$' {
-      if (Test-Path $Script:ConfigFile) {
-        Remove-Item $Script:ConfigFile -Force
-        Write-Say "Stored key removed ($Script:ConfigFile)."
+    exit 0
+  } elseif ($Cmd -match '^(model|models|--model|--models)$') {
+    Write-Say "--- Z.ai Models ---"
+    Write-Say "1. glm-5.2[1m]  (Flagship, 1M context)"
+    Write-Say "2. glm-5.2      (Standard 1M context)"
+    Write-Say "3. glm-5.1      (Previous generation)"
+    Write-Say "4. glm-5        (Standard Gen 5)"
+    Write-Say "5. glm-5-turbo  (High speed)"
+    Write-Say "6. glm-4.7      (Fast & cheap, 200K)"
+    Write-Say "7. glm-4.6"
+    Write-Say "8. glm-4.5"
+    Write-Say "9. glm-4-32b-0414-128k"
+    Write-Say "10. GLM-4.7-Flash (Free, ultra fast)"
+    $choice = Read-Host "Select a model (1-10) [leave blank to cancel]"
+    $model = switch ($choice.Trim()) {
+      '1' { 'glm-5.2[1m]' }
+      '2' { 'glm-5.2' }
+      '3' { 'glm-5.1' }
+      '4' { 'glm-5' }
+      '5' { 'glm-5-turbo' }
+      '6' { 'glm-4.7' }
+      '7' { 'glm-4.6' }
+      '8' { 'glm-4.5' }
+      '9' { 'glm-4-32b-0414-128k' }
+      '10' { 'GLM-4.7-Flash' }
+      ''  { Write-Say "Cancelled."; exit 0 }
+      default { Write-ErrorX "Invalid choice."; exit 1 }
+    }
+    Write-Config 'ZCL_OPUS_SONNET_MODEL' $model
+    Write-Say "Default model has been set to: $model"
+    exit 0
+  } elseif ($Cmd -match '^(update|--update|upgrade|--upgrade)$') {
+    Write-Say 'Updating zcl to the latest version...'
+    irm "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.ps1?v=$([guid]::NewGuid().ToString().Substring(0, 8))" | iex
+    exit 0
+  } elseif ($Cmd -match '^(verify|--verify)$') {
+    $key = Get-Key
+    if (-not $key) { Write-ErrorX "No stored key. Run 'zcl config' first." }
+    Write-Say "Stored key: $($key.Substring(0, [Math]::Min(5, $key.Length)))...$($key.Substring($key.Length - [Math]::Min(4, $key.Length))) ($($key.Length) chars)"
+    if (Test-KeyFormat $key) {
+      Write-Say 'Format:  ✓'
+    } else {
+      Write-Warn 'Format:  ✗ (unusual format)'
+    }
+    Test-KeyApi $key | Out-Null
+    exit 0
+  } elseif ($Cmd -match '^(doctor)$') {
+    Write-Say "--- Zcl Doctor ---"
+    $healthy = $true
+    
+    # Node.js check
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+      $nodeVer = (node -v).Trim()
+      Write-Say "✓ Node.js installed ($nodeVer)"
+    } else {
+      Write-Warn "✗ Node.js not found. Claude Code requires Node.js."
+      $healthy = $false
+    }
+    
+    # npm check
+    if (Get-Command npm -ErrorAction SilentlyContinue) {
+      $npmVer = (npm -v).Trim()
+      Write-Say "✓ npm installed ($npmVer)"
+    } else {
+      Write-Warn "✗ npm not found."
+      $healthy = $false
+    }
+    
+    # claude check
+    if (Get-Command claude -ErrorAction SilentlyContinue) {
+      $claudeVer = (claude --version).Trim()
+      Write-Say "✓ Claude Code installed ($claudeVer)"
+    } else {
+      Write-Warn "✗ Claude Code not found. Will prompt for auto-install on launch."
+      $healthy = $false
+    }
+    
+    # API Key
+    $key = Get-Key
+    if ($key) {
+      Write-Say "✓ API Key is configured."
+      if (Test-KeyApi $key) {
+        Write-Say "✓ API Key can reach Z.ai servers successfully."
       } else {
-        Write-Say 'No stored key to remove.'
-      }
-      exit 0
-    }
-    '^(model|models|--model|--models)$' {
-      Write-Say "--- Z.ai Models ---"
-      Write-Say "1. glm-5.2[1m]  (Flagship, 1M context)"
-      Write-Say "2. glm-5.2      (Standard 1M context)"
-      Write-Say "3. glm-5.1      (Previous generation)"
-      Write-Say "4. glm-5        (Standard Gen 5)"
-      Write-Say "5. glm-5-turbo  (High speed)"
-      Write-Say "6. glm-4.7      (Fast & cheap, 200K)"
-      Write-Say "7. glm-4.6"
-      Write-Say "8. glm-4.5"
-      Write-Say "9. glm-4-32b-0414-128k"
-      Write-Say "10. GLM-4.7-Flash (Free, ultra fast)"
-      $choice = Read-Host "Select a model (1-10) [leave blank to cancel]"
-      $model = switch ($choice.Trim()) {
-        '1' { 'glm-5.2[1m]' }
-        '2' { 'glm-5.2' }
-        '3' { 'glm-5.1' }
-        '4' { 'glm-5' }
-        '5' { 'glm-5-turbo' }
-        '6' { 'glm-4.7' }
-        '7' { 'glm-4.6' }
-        '8' { 'glm-4.5' }
-        '9' { 'glm-4-32b-0414-128k' }
-        '10' { 'GLM-4.7-Flash' }
-        ''  { Write-Say "Cancelled."; exit 0 }
-        default { Write-ErrorX "Invalid choice."; exit 1 }
-      }
-      Write-Config 'ZCL_OPUS_SONNET_MODEL' $model
-      Write-Say "Default model has been set to: $model"
-      exit 0
-    }
-    '^(update|--update|upgrade|--upgrade)$' {
-      Write-Say 'Updating zcl to the latest version...'
-      irm "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.ps1?v=$([guid]::NewGuid().ToString().Substring(0, 8))" | iex
-      exit 0
-    }
-    '^(verify|--verify)$' {
-      $key = Get-Key
-      if (-not $key) { Write-ErrorX "No stored key. Run 'zcl config' first." }
-      Write-Say "Stored key: $($key.Substring(0, [Math]::Min(5, $key.Length)))...$($key.Substring($key.Length - [Math]::Min(4, $key.Length))) ($($key.Length) chars)"
-      if (Test-KeyFormat $key) {
-        Write-Say 'Format:  ✓'
-      } else {
-        Write-Warn 'Format:  ✗ (unusual format)'
-      }
-      Test-KeyApi $key | Out-Null
-      exit 0
-    }
-    '^(doctor)$' {
-      Write-Say "--- Zcl Doctor ---"
-      $healthy = $true
-      
-      # Node.js check
-      if (Get-Command node -ErrorAction SilentlyContinue) {
-        $nodeVer = (node -v).Trim()
-        Write-Say "✓ Node.js installed ($nodeVer)"
-      } else {
-        Write-Warn "✗ Node.js not found. Claude Code requires Node.js."
+        Write-Warn "✗ API Key failed validation."
         $healthy = $false
       }
-      
-      # npm check
-      if (Get-Command npm -ErrorAction SilentlyContinue) {
-        $npmVer = (npm -v).Trim()
-        Write-Say "✓ npm installed ($npmVer)"
-      } else {
-        Write-Warn "✗ npm not found."
-        $healthy = $false
-      }
-      
-      # claude check
-      if (Get-Command claude -ErrorAction SilentlyContinue) {
-        $claudeVer = (claude --version).Trim()
-        Write-Say "✓ Claude Code installed ($claudeVer)"
-      } else {
-        Write-Warn "✗ Claude Code not found. Will prompt for auto-install on launch."
-        $healthy = $false
-      }
-      
-      # API Key
-      $key = Get-Key
-      if ($key) {
-        Write-Say "✓ API Key is configured."
-        if (Test-KeyApi $key) {
-          Write-Say "✓ API Key can reach Z.ai servers successfully."
-        } else {
-          Write-Warn "✗ API Key failed validation."
-          $healthy = $false
-        }
-      } else {
-        Write-Warn "✗ No API Key set. Run 'zcl config'."
-        $healthy = $false
-      }
-      
-      if ($healthy) { Write-Say "`nSystem is fully ready to use Zcl!" } else { Write-Warn "`nSome checks failed. Please fix the warnings above." }
-      exit 0
+    } else {
+      Write-Warn "✗ No API Key set. Run 'zcl config'."
+      $healthy = $false
     }
-    '^(clean)$' {
-      Write-Say "Clearing Claude Code memory/cache..."
-      $localClaude = Join-Path (Get-Location) ".claude"
-      if (Test-Path $localClaude) {
-        Remove-Item -Recurse -Force $localClaude
-        Write-Say "✓ Removed local project memory ($localClaude)"
-      } else {
-        Write-Say "✓ No local project memory found."
-      }
-      exit 0
+    
+    if ($healthy) {
+      Write-Say "`nSystem is fully ready to use Zcl!"
+    } else {
+      Write-Warn "`nSome checks failed. Please fix the warnings above."
     }
-    '^(alias)$' {
-      $aliasName = if ($SubArgs.Count -gt 0) { $SubArgs[0] } else { 'c' }
-      if (-not (Test-Path $PROFILE)) {
-        New-Item -ItemType File -Path $PROFILE -Force | Out-Null
-      }
-      $aliasCmd = "Set-Alias $aliasName zcl"
-      Add-Content -Path $PROFILE -Value "`n# Added by zcl`n$aliasCmd"
-      Write-Say "✓ Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
-      Write-Say "Restart your terminal or run '. $($PROFILE)' to use it."
-      exit 0
+    exit 0
+  } elseif ($Cmd -match '^(clean)$') {
+    Write-Say "Clearing Claude Code memory/cache..."
+    $localClaude = Join-Path (Get-Location) ".claude"
+    if (Test-Path $localClaude) {
+      Remove-Item -Recurse -Force $localClaude
+      Write-Say "✓ Removed local project memory ($localClaude)"
+    } else {
+      Write-Say "✓ No local project memory found."
     }
-    '^(show-config|--show-config|show|--show)$' {
-      Show-Config
+    exit 0
+  } elseif ($Cmd -match '^(alias)$') {
+    $aliasName = 'c'
+    if ($SubArgs.Count -gt 0) { $aliasName = $SubArgs[0] }
+    if (-not (Test-Path $PROFILE)) {
+      New-Item -ItemType File -Path $PROFILE -Force | Out-Null
     }
-    '^(help|--help|-h)$' {
-      Show-Help
-    }
+    $aliasCmd = "Set-Alias $aliasName zcl"
+    Add-Content -Path $PROFILE -Value "`n# Added by zcl`n$aliasCmd"
+    Write-Say "✓ Alias '$aliasName' for 'zcl' has been added to your PowerShell profile ($PROFILE)."
+    Write-Say "Restart your terminal or run . `"$PROFILE`" to use it."
+    exit 0
+  } elseif ($Cmd -match '^(show-config|--show-config|show|--show)$') {
+    Show-Config
+  } elseif ($Cmd -match '^(help|--help|-h)$') {
+    Show-Help
   }
+}
 }
 
 # ============================================================================
@@ -459,7 +454,7 @@ while ($i -lt $args.Count) {
     '--safe'    { $env:ZCL_SAFE = '1'; $i++ }
     '--'        { $i++; for (; $i -lt $args.Count; $i++) { $passthrough.Add($args[$i]) | Out-Null }; break }
     default {
-      if ($args[$i] -match '^(config|--config|set-key|--set-key|change|--change|change-key|--change-key|reset|--reset|model|models|--model|--models|update|--update|upgrade|--upgrade|verify|--verify|show-config|--show-config|show|--show)$') {
+      if ($args[$i] -match '^(config|--config|set-key|--set-key|change|--change|change-key|--change-key|reset|--reset|model|models|--model|--models|update|--update|upgrade|--upgrade|verify|--verify|doctor|clean|alias|show-config|--show-config|show|--show)$') {
         $subArgs = @()
         for ($j = $i + 1; $j -lt $args.Count; $j++) { $subArgs += $args[$j] }
         Invoke-Subcommand -Cmd $args[$i] -SubArgs $subArgs
