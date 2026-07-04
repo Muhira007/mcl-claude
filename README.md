@@ -375,6 +375,15 @@ ZCL_OPUS_SONNET_MODEL="glm-5.2[1m]" zcl "tulis kode"
 ZCL_HAIKU_MODEL="glm-4.7" zcl --safe "review dokumentasi"
 ```
 
+### Mengganti Model secara Interaktif
+
+Zcl menyediakan subcommand `model` yang memudahkan Anda memilih model Z.ai secara interaktif, tanpa perlu mengedit config secara manual.
+
+```bash
+zcl model
+```
+Perintah ini akan memunculkan daftar model yang tersedia, Anda cukup mengetikkan angkanya, dan Zcl akan otomatis menyimpan pilihan tersebut sebagai model default di file config.
+
 ### Model Z.ai yang Tersedia (untuk Coding)
 
 | Model ID | Karakteristik | Context |
