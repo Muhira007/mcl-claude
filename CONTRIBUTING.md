@@ -1,4 +1,4 @@
-# Contributing to zcl
+# Contributing to mcl
 
 Terima kasih atas minatmu untuk berkontribusi!
 
@@ -9,7 +9,7 @@ Terima kasih atas minatmu untuk berkontribusi!
 git clone https://github.com/Muhira007/z-ai-claude.git
 cd z-ai-claude
 
-# Make changes to zcl script
+# Make changes to mcl script
 # ...
 
 # Run linting
@@ -25,9 +25,9 @@ make install
 ## Project Structure
 
 ```
-zcl/
-├── zcl                # Main Bash script (Linux/macOS)
-├── zcl.ps1            # PowerShell script (Windows)
+mcl/
+├── mcl                # Main Bash script (Linux/macOS)
+├── mcl.ps1            # PowerShell script (Windows)
 ├── install.sh         # Bash installer
 ├── install.ps1        # PowerShell installer
 ├── completions/       # Shell completions (bash/zsh/fish)
@@ -40,7 +40,7 @@ zcl/
 ## Before Submitting
 
 1. Run `make check` — ensure linting and tests pass
-2. Update `VERSION` in both `zcl` and `zcl.ps1`
+2. Update `VERSION` in both `mcl` and `mcl.ps1`
 3. Follow existing code style (shellcheck-clean Bash)
 
 ## Code Style

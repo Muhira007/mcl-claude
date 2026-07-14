@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# zcl installer.
+# mcl installer.
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.sh | bash
 #
@@ -12,7 +12,7 @@ set -euo pipefail
 
 REPO="https://raw.githubusercontent.com/Muhira007/z-ai-claude"
 VERSION="${VERSION:-main}"
-CMD_NAME="zcl"
+CMD_NAME="mcl"
 BIN_DIR="${DEST:-$HOME/.local/bin}"
 REPO_URL="${REPO}/${VERSION}"
 
@@ -22,7 +22,7 @@ die()   { say "ERROR: $*"; exit 1; }
 
 # --- pre-flight checks -------------------------------------------------------
 if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-  die "Need curl or wget to download zcl."
+  die "Need curl or wget to download mcl."
 fi
 
 # --- download function -------------------------------------------------------

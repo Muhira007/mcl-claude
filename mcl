@@ -1,0 +1,643 @@
+#!/usr/bin/env bash
+#
+# mcl — run Claude Code against MiMo's MiMo-5.2 Anthropic-compatible API.
+#
+# Key resolution order:
+#   1. `mcl config [KEY]`            — set/replace the stored key (inline or prompt)
+#   2. stored config file            — set on a previous run
+#   3. MCL_API_KEY env var           — used and saved for next time
+#   4. interactive prompt            — asks for the key if you haven't included it yet
+#
+set -euo pipefail
+
+VERSION="1.0.0"
+
+# --- paths -------------------------------------------------------------------
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/mcl"
+CONFIG_FILE="$CONFIG_DIR/config"
+
+# --- defaults ----------------------------------------------------------------
+# Based on official MiMo docs: https://docs.mimo.mi.com/devpack/tool/claude
+DEFAULT_OPUS_SONNET_MODEL="mimo-v2.5"
+DEFAULT_HAIKU_MODEL="mimo-v2.5"
+DEFAULT_TIMEOUT_MS="3000000"        # 50 min — recommended for long-thinking tasks
+DEFAULT_AUTO_COMPACT="1000000"      # 1M — match MiMo-5.2 context window
+DEFAULT_BASE_URL="https://api.mimo.mi.com/v1"
+DEFAULT_TOKEN_PLAN_BASE_URL="https://token-plan-sgp.xiaomimimo.com/anthropic"
+
+# --- helpers -----------------------------------------------------------------
+say()   { printf '%s\n' "$*" >&2; }
+die()   { say "ERROR: $*"; exit 1; }
+warn()  { say "WARNING: $*"; }
+debug() { [ "${MCL_VERBOSE:-0}" = "1" ] && say "[DEBUG] $*" || true; }
+
+trim() {
+  local s="$1"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
+}
+
+# --- config file I/O ---------------------------------------------------------
+# Read a key from the config file. Usage: read_config KEY_NAME
+read_config() {
+  local want="$1"
+  [ -f "$CONFIG_FILE" ] || return 1
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      "${want}="*) printf '%s' "${line#"${want}="}"; return 0 ;;
+    esac
+  done < "$CONFIG_FILE"
+  return 1
+}
+
+# Write/update a key=value pair in the config file.
+write_config() {
+  local key="$1" value="$2"
+  mkdir -p "$CONFIG_DIR"
+  if [ -f "$CONFIG_FILE" ] && grep -q "^${key}=" "$CONFIG_FILE" 2>/dev/null; then
+    # Update existing key
+    local tmp; tmp="$(mktemp)"
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        "${key}="*) printf '%s=%s\n' "$key" "$value" ;;
+        *) printf '%s\n' "$line" ;;
+      esac
+    done < "$CONFIG_FILE" > "$tmp"
+    mv "$tmp" "$CONFIG_FILE"
+  else
+    # Append new key
+    printf '%s=%s\n' "$key" "$value" >> "$CONFIG_FILE"
+  fi
+  chmod 600 "$CONFIG_FILE" 2>/dev/null || true
+}
+
+save_key() {
+  local key
+  key="$(trim "$1")"
+  if [ -z "$key" ]; then
+    die "Refusing to save an empty key."
+  fi
+  if ! validate_key_format "$key"; then
+    warn "MiMo keys should follow the format: {API Key ID}.{secret}"
+    warn "Example: abc123xyz.abcdefghijklmnopqrstuvwxyz"
+    warn "Saving anyway, but it may not work."
+  fi
+  write_config "MCL_API_KEY" "$key"
+  say "Key saved to $CONFIG_FILE"
+}
+
+read_key() {
+  read_config "MCL_API_KEY" 2>/dev/null || true
+}
+
+# --- key validation ----------------------------------------------------------
+validate_key_format() {
+  local key="$1"
+  # MiMo keys follow the format: {API Key ID}.{secret} or tp-xxxxx
+  [[ "$key" =~ ^[a-zA-Z0-9]+\.[a-zA-Z0-9]+$ ]] && return 0
+  [[ "$key" == tp-* ]] && return 0
+  return 1
+}
+
+verify_key_api() {
+  local key="$1"
+  say "Verifying API key..."
+  if ! command -v curl >/dev/null 2>&1; then
+    warn "curl not found; skipping API validation."
+    return 2
+  fi
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    --max-time 10 \
+    -H "Authorization: Bearer ${key}" \
+    "https://api.mimo.mi.com/api/paas/v4/models" 2>/dev/null || echo "000")
+
+  case "$http_code" in
+    200) say "✓ API key is valid."; return 0 ;;
+    401) say "✗ API key is invalid or expired (HTTP 401)."; return 1 ;;
+    403) say "✗ API key lacks permissions (HTTP 403)."; return 1 ;;
+    000) warn "Could not reach MiMo API (network error)."; return 2 ;;
+    *)   warn "Unexpected response (HTTP $http_code). Key may still work."; return 2 ;;
+  esac
+}
+
+# --- interactive setup -------------------------------------------------------
+interactive_setup() {
+  say ""
+  say "┌──────────────────────────────────────────┐"
+  say "│  mcl · first-time setup                  │"
+  say "└──────────────────────────────────────────┘"
+  say ""
+  say "Claude Code will run against MiMo's MiMo-5.2 API."
+  say "You only need to enter your key once."
+  say ""
+  say "1. Buat akun di https://mimo.mi.com"
+  say "2. Setelah login, buka https://mimo.mi.com/manage-apikey/apikey-list"
+  say ""
+  say "The API key format is: {API Key ID}.{secret}"
+  say "Example: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.AbCdEfGhIjKlMnOpQrStUvWxYz112233"
+  say ""
+  say "⚠  Keep your key secure. MiMo auto-revokes publicly exposed keys."
+  say ""
+  local key="" tries=0
+  while :; do
+    key="$(trim "$(read_secret 'MiMo API key: ')")"
+    if [ -n "$key" ]; then
+      if ! validate_key_format "$key"; then
+        warn "Key should be in format: {API Key ID}.{secret} (e.g. abc123.xyz789)"
+        say ""
+      fi
+      break
+    fi
+    tries=$((tries + 1))
+    say "Key can't be empty."
+    if [ "$tries" -ge 3 ]; then
+      die "Aborting after 3 empty attempts."
+    fi
+  done
+  save_key "$key"
+  say ""
+  say "Key saved. Verifying..."
+  verify_key_api "$key" || true
+  say ""
+}
+
+# Read a secret from the terminal; fall back to stdin if /dev/tty is unusable.
+read_secret() {
+  local prompt="$1" value=""
+  printf '%s' "$prompt" >&2
+  if IFS= read -rs value 2>/dev/null < /dev/tty; then
+    :
+  else
+    IFS= read -rs value || true
+  fi
+  printf '\n' >&2
+  printf '%s' "$value"
+}
+
+# --- help --------------------------------------------------------------------
+show_help() {
+  cat <<'EOF'
+mcl — run Claude Code against MiMo's MiMo-5.2 Anthropic-compatible API.
+
+USAGE
+  mcl [FLAGS] [--] [ARGUMENTS...]
+
+FLAGS
+  --help, help       Show this help message
+  --version          Show version number
+  --dry-run          Print what would be executed, without running Claude Code
+  --verbose          Print debug information during execution
+  --safe             Run WITHOUT --dangerously-skip-permissions (more prompts)
+
+SUBCOMMANDS
+  mcl config [KEY]       Set or change the stored API key
+  mcl change-key [KEY]   Alias for config
+  mcl reset              Delete the stored API key
+  mcl update             Update to the latest version
+  mcl verify             Verify the stored API key against MiMo API
+  mcl show-config        Print current configuration (key masked)
+  mcl model              Interactively select the MiMo model to use
+  mcl doctor             Run diagnostic checks
+  mcl clean              Clear local Claude Code cache/memory
+  mcl alias [NAME]       Create a shell shortcut (e.g. mcl alias c)
+
+KEY RESOLUTION ORDER
+  1. mcl config <KEY>
+  2. Stored config file (~/.config/mcl/config)
+  3. MCL_API_KEY environment variable (auto-saved on use)
+  4. Interactive prompt
+
+ENVIRONMENT VARIABLES
+  MCL_API_KEY                   MiMo API key (saved automatically on first use)
+  MCL_SAFE=1                    Same as --safe (skip --dangerously-skip-permissions)
+  MCL_VERBOSE=1                 Same as --verbose
+  MCL_OPUS_SONNET_MODEL         Opus/Sonnet model (default: mimo-v2.5)
+  MCL_HAIKU_MODEL               Haiku model (default: mimo-v2.5)
+  MCL_TIMEOUT_MS                API timeout in ms (default: 3000000 = 50 min)
+  MCL_AUTO_COMPACT              Auto-compact window (default: 1000000)
+MODEL INFO
+  Available MiMo Models:
+    mimo-v2.5, glm-5.2, glm-5.1, glm-5
+    glm-5-turbo, mimo-v2.5, glm-4.6, glm-4.5
+    glm-4-32b-0414-128k, MiMo-4.7-Flash
+
+  Use /effort inside Claude Code to set reasoning effort.
+  MiMo-5.2 maps: low/medium/high -> high, xhigh/max/ultracode -> max
+
+CONFIG FILE
+  Path:  ~/.config/mcl/config   (chmod 600)
+  Format: KEY=VALUE (one per line)
+
+  Customize models in the config file:
+    MCL_OPUS_SONNET_MODEL=mimo-v2.5
+    MCL_HAIKU_MODEL=mimo-v2.5
+    MCL_TIMEOUT_MS=3000000
+    MCL_AUTO_COMPACT=1000000
+    MCL_SAFE=1
+
+  Or set them per-session as environment variables.
+
+EXAMPLES
+  mcl                              # First run: enter key, then start
+  mcl "refactor this module"       # Pass a prompt to Claude Code
+  mcl --safe "rm -rf ./build"      # Run with permission prompts enabled
+  mcl --dry-run --verbose          # Preview what will be set
+  mcl config <your-key>            # Set key without interactive prompt
+  mcl verify                       # Check if your stored key works
+  mcl show-config                  # See current settings
+EOF
+  exit 0
+}
+
+# --- show config -------------------------------------------------------------
+show_config() {
+  local key saved_safe
+  key="$(read_key || true)"
+  saved_safe="$(read_config "MCL_SAFE" 2>/dev/null || echo "0")"
+
+  echo "Config file : $CONFIG_FILE"
+  echo "Config dir  : $CONFIG_DIR"
+  echo "---"
+  echo "API key     : ${key:+(stored, ${#key} chars)}"
+  echo "Safe mode   : ${MCL_SAFE:-$saved_safe}"
+  echo "---"
+  echo "Model overrides (from config or env):"
+  echo "  OPUS/SONNET  : ${MCL_OPUS_SONNET_MODEL:-$(read_config "MCL_OPUS_SONNET_MODEL" 2>/dev/null || echo "$DEFAULT_OPUS_SONNET_MODEL")}"
+  echo "  HAIKU        : ${MCL_HAIKU_MODEL:-$(read_config "MCL_HAIKU_MODEL" 2>/dev/null || echo "$DEFAULT_HAIKU_MODEL")}"
+  echo "  TIMEOUT_MS   : ${MCL_TIMEOUT_MS:-$(read_config "MCL_TIMEOUT_MS" 2>/dev/null || echo "$DEFAULT_TIMEOUT_MS")}"
+  exit 0
+}
+
+# --- dry run -----------------------------------------------------------------
+do_dry_run() {
+  local key safe_mode opus_sonnet haiku_model timeout_ms autocompact base_url
+  key="$(read_key || true)"
+  safe_mode="${MCL_SAFE:-$(read_config "MCL_SAFE" 2>/dev/null || echo "0")}"
+  opus_sonnet="${MCL_OPUS_SONNET_MODEL:-$(read_config "MCL_OPUS_SONNET_MODEL" 2>/dev/null || echo "$DEFAULT_OPUS_SONNET_MODEL")}"
+  haiku_model="${MCL_HAIKU_MODEL:-$(read_config "MCL_HAIKU_MODEL" 2>/dev/null || echo "$DEFAULT_HAIKU_MODEL")}"
+  timeout_ms="${MCL_TIMEOUT_MS:-$(read_config "MCL_TIMEOUT_MS" 2>/dev/null || echo "$DEFAULT_TIMEOUT_MS")}"
+  autocompact="${MCL_AUTO_COMPACT:-$(read_config "MCL_AUTO_COMPACT" 2>/dev/null || echo "$DEFAULT_AUTO_COMPACT")}"
+
+  if [ -n "${MCL_BASE_URL:-}" ]; then
+    base_url="$MCL_BASE_URL"
+  else
+    base_url="$(read_config "MCL_BASE_URL" 2>/dev/null || true)"
+    if [ -z "$base_url" ]; then
+      if [[ "$key" == tp-* ]]; then
+        base_url="$DEFAULT_TOKEN_PLAN_BASE_URL"
+      else
+        base_url="$DEFAULT_BASE_URL"
+      fi
+    fi
+  fi
+
+  echo "═══════════════════════════════════════════════"
+  echo "  mcl dry-run"
+  echo "═══════════════════════════════════════════════"
+  echo ""
+  echo "Would set these environment variables:"
+  echo ""
+  printf "  %-36s %s\n" "ANTHROPIC_BASE_URL" "$base_url"
+  printf "  %-36s %s\n" "ANTHROPIC_AUTH_TOKEN" "${key:+(hidden, ${#key} chars)}"
+  printf "  %-36s %s\n" "ANTHROPIC_DEFAULT_OPUS_MODEL" "$opus_sonnet"
+  printf "  %-36s %s\n" "ANTHROPIC_DEFAULT_SONNET_MODEL" "$opus_sonnet"
+  printf "  %-36s %s\n" "ANTHROPIC_DEFAULT_HAIKU_MODEL" "$haiku_model"
+  printf "  %-36s %s\n" "API_TIMEOUT_MS" "$timeout_ms"
+  printf "  %-36s %s\n" "CLAUDE_CODE_AUTO_COMPACT_WINDOW" "$autocompact"
+  echo ""
+  echo "Note: Use /effort inside Claude Code to set reasoning effort."
+  echo "      MiMo-5.2 maps: low/med/high->high, xhigh/max/ultracode->max"
+  echo ""
+  if [ "$safe_mode" = "1" ]; then
+    echo "Would run: claude $*"
+  else
+    echo "Would run: claude --dangerously-skip-permissions $*"
+  fi
+  echo ""
+  if [ "$safe_mode" != "1" ]; then
+    echo "⚠  --dangerously-skip-permissions is ENABLED (use --safe to disable)"
+  else
+    echo "✓  Safe mode: tools will require per-action approval"
+  fi
+  exit 0
+}
+
+# --- subcommands -------------------------------------------------------------
+handle_subcommand() {
+  case "${1:-}" in
+    config|--config|set-key|--set-key|change|--change|change-key|--change-key)
+      if [ "${2:-}" != "" ]; then
+        save_key "$2"
+      else
+        interactive_setup
+      fi
+      say "Done. Run 'mcl' to start."
+      exit 0
+      ;;
+    reset|--reset)
+      if [ -f "$CONFIG_FILE" ]; then
+        rm -f "$CONFIG_FILE"
+        say "Stored key removed ($CONFIG_FILE)."
+      else
+        say "No stored key to remove."
+      fi
+      exit 0
+      ;;
+    model|models|--model|--models)
+      say "--- MiMo Models ---"
+      say "1. mimo-v2.5  (Flagship, 1M context)"
+      say "2. glm-5.2      (Standard 1M context)"
+      say "3. glm-5.1      (Previous generation)"
+      say "4. glm-5        (Standard Gen 5)"
+      say "5. glm-5-turbo  (High speed)"
+      say "6. mimo-v2.5      (Fast & cheap, 200K)"
+      say "7. glm-4.6"
+      say "8. glm-4.5"
+      say "9. glm-4-32b-0414-128k"
+      say "10. MiMo-4.7-Flash (Free, ultra fast)"
+      printf "Select a model (1-10) [leave blank to cancel]: "
+      read -r choice
+      case "$choice" in
+        1) model="mimo-v2.5" ;;
+        2) model="glm-5.2" ;;
+        3) model="glm-5.1" ;;
+        4) model="glm-5" ;;
+        5) model="glm-5-turbo" ;;
+        6) model="mimo-v2.5" ;;
+        7) model="glm-4.6" ;;
+        8) model="glm-4.5" ;;
+        9) model="glm-4-32b-0414-128k" ;;
+        10) model="MiMo-4.7-Flash" ;;
+        "") say "Cancelled."; exit 0 ;;
+        *) die "Invalid choice." ;;
+      esac
+      write_config "MCL_OPUS_SONNET_MODEL" "$model"
+      say "Default model has been set to: $model"
+      exit 0
+      ;;
+    update|--update|upgrade|--upgrade)
+      say "Updating mcl to the latest version..."
+      curl -fsSL "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.sh?v=$(date +%s)" | bash
+      exit $?
+      ;;
+    verify|--verify)
+      local key; key="$(read_key || true)"
+      if [ -z "$key" ]; then
+        die "No stored key. Run 'mcl config' first."
+      fi
+      say "Stored key: ${key:0:5}...${key: -4} (${#key} chars)"
+      if validate_key_format "$key"; then
+        say "Format:  ✓"
+      else
+        warn "Format:  ✗ (unusual format)"
+      fi
+      verify_key_api "$key" || true
+      exit 0
+      ;;
+    doctor)
+      say "--- Mcl Doctor ---"
+      local healthy=1
+      
+      if command -v node >/dev/null 2>&1; then
+        say "✓ Node.js installed ($(node -v))"
+      else
+        warn "✗ Node.js not found. Claude Code requires Node.js."
+        healthy=0
+      fi
+      
+      if command -v npm >/dev/null 2>&1; then
+        say "✓ npm installed ($(npm -v))"
+      else
+        warn "✗ npm not found."
+        healthy=0
+      fi
+      
+      if command -v claude >/dev/null 2>&1; then
+        say "✓ Claude Code installed ($(claude --version 2>/dev/null || echo "unknown"))"
+      else
+        warn "✗ Claude Code not found. Will prompt for auto-install on launch."
+        healthy=0
+      fi
+      
+      local key; key="$(read_key || true)"
+      if [ -n "$key" ]; then
+        say "✓ API Key is configured."
+        if curl -fsSL -X GET -H "Authorization: Bearer $key" --max-time 10 https://api.mimo.mi.com/api/paas/v4/models >/dev/null 2>&1; then
+          say "✓ API Key can reach MiMo servers successfully."
+        else
+          warn "✗ API Key failed validation."
+          healthy=0
+        fi
+      else
+        warn "✗ No API Key set. Run 'mcl config'."
+        healthy=0
+      fi
+      
+      if [ "$healthy" -eq 1 ]; then
+        say "
+System is fully ready to use Mcl!"
+      else
+        warn "
+Some checks failed. Please fix the warnings above."
+      fi
+      exit 0
+      ;;
+    clean)
+      say "Clearing Claude Code memory/cache..."
+      if [ -d "./.claude" ]; then
+        rm -rf "./.claude"
+        say "✓ Removed local project memory (./.claude)"
+      else
+        say "✓ No local project memory found."
+      fi
+      exit 0
+      ;;
+    alias)
+      local aliasName="${2:-c}"
+      local rc_file=""
+      if [ -n "$ZSH_VERSION" ]; then
+        rc_file="$HOME/.zshrc"
+      elif [ -n "$BASH_VERSION" ]; then
+        rc_file="$HOME/.bashrc"
+      else
+        rc_file="$HOME/.bashrc"
+      fi
+      echo "alias $aliasName='mcl'" >> "$rc_file"
+      say "✓ Alias '$aliasName' for 'mcl' has been added to $rc_file"
+      say "Restart your terminal or run 'source $rc_file' to use it."
+      exit 0
+      ;;
+    show-config|--show-config|show|--show)
+      show_config
+      ;;
+    help|--help|-h)
+      show_help
+      ;;
+  esac
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+# Parse mcl-specific flags from the front of the argument list.
+DRY_RUN=0
+PASSTHROUGH_ARGS=()
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --help|help|-h)
+      show_help
+      ;;
+    --version)
+      echo "mcl v$VERSION"
+      exit 0
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --verbose)
+      MCL_VERBOSE=1
+      export MCL_VERBOSE
+      shift
+      ;;
+    --safe)
+      MCL_SAFE=1
+      export MCL_SAFE
+      shift
+      ;;
+    --)
+      shift
+      PASSTHROUGH_ARGS+=("$@")
+      break
+      ;;
+    config|--config|set-key|--set-key|change|--change|change-key|--change-key|\
+    reset|--reset|model|models|--model|--models|update|--update|upgrade|--upgrade|\
+    verify|--verify|show-config|--show-config|show|--show)
+      handle_subcommand "$@"
+      ;;
+    *)
+      PASSTHROUGH_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+debug "mcl v$VERSION starting"
+
+check_for_updates() {
+  local last_check_file="$CONFIG_DIR/last_update_check"
+  local current_time
+  current_time=$(date +%s)
+  
+  if [ -f "$last_check_file" ]; then
+    local last_check
+    last_check=$(cat "$last_check_file")
+    if [ $((current_time - last_check)) -lt 86400 ]; then
+      return 0
+    fi
+  fi
+  
+  if command -v curl >/dev/null 2>&1; then
+    local remote_ver
+    remote_ver=$(curl -fsSL --max-time 2 "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/VERSION" 2>/dev/null)
+    if [ -n "$remote_ver" ] && [ "$remote_ver" != "$VERSION" ] && [[ "$remote_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      printf "\033[33m\n🚀 New version of Mcl is available (%s)! Run 'mcl update' to install.\n\n\033[0m" "$remote_ver" >&2
+    fi
+  fi
+  echo "$current_time" > "$last_check_file"
+}
+check_for_updates &>/dev/null &
+
+debug "CONFIG_FILE=$CONFIG_FILE"
+debug "DRY_RUN=$DRY_RUN"
+debug "MCL_SAFE=${MCL_SAFE:-0}"
+debug "MCL_VERBOSE=${MCL_VERBOSE:-0}"
+
+# --- resolve the key ---------------------------------------------------------
+KEY="$(read_key || true)"
+debug "Key from config: ${KEY:+found (${#KEY} chars)}"
+
+# Not stored yet: take it from the environment if it's there...
+if [ -z "${KEY:-}" ] && [ -n "${MCL_API_KEY:-}" ]; then
+  KEY="$(trim "$MCL_API_KEY")"
+  say "Using MCL_API_KEY from environment; saving for next time."
+  if ! save_key "$KEY"; then
+    warn "Could not save key to $CONFIG_FILE (disk full or permission issue?)."
+    warn "Key will only be used for this session."
+  fi
+fi
+
+# ...otherwise ask for it interactively.
+if [ -z "${KEY:-}" ]; then
+  interactive_setup
+  KEY="$(read_key || true)"
+fi
+
+if [ -z "${KEY:-}" ]; then
+  die "No API key available. Run 'mcl config' to set one."
+fi
+
+debug "Key resolved (${#KEY} chars)"
+
+# --- resolve model overrides -------------------------------------------------
+# Priority: env var > config file > built-in default
+OPUS_SONNET="${MCL_OPUS_SONNET_MODEL:-$(read_config "MCL_OPUS_SONNET_MODEL" 2>/dev/null || echo "$DEFAULT_OPUS_SONNET_MODEL")}"
+HAIKU_MODEL="${MCL_HAIKU_MODEL:-$(read_config "MCL_HAIKU_MODEL" 2>/dev/null || echo "$DEFAULT_HAIKU_MODEL")}"
+TIMEOUT_MS="${MCL_TIMEOUT_MS:-$(read_config "MCL_TIMEOUT_MS" 2>/dev/null || echo "$DEFAULT_TIMEOUT_MS")}"
+AUTO_COMPACT="${MCL_AUTO_COMPACT:-$(read_config "MCL_AUTO_COMPACT" 2>/dev/null || echo "$DEFAULT_AUTO_COMPACT")}"
+SAFE_MODE="${MCL_SAFE:-$(read_config "MCL_SAFE" 2>/dev/null || echo "0")}"
+
+if [ -n "${MCL_BASE_URL:-}" ]; then
+  BASE_URL="$MCL_BASE_URL"
+else
+  BASE_URL="$(read_config "MCL_BASE_URL" 2>/dev/null || true)"
+  if [ -z "$BASE_URL" ]; then
+    if [[ "$KEY" == tp-* ]]; then
+      BASE_URL="$DEFAULT_TOKEN_PLAN_BASE_URL"
+    else
+      BASE_URL="$DEFAULT_BASE_URL"
+    fi
+  fi
+fi
+
+debug "OPUS_SONNET=$OPUS_SONNET"
+debug "HAIKU_MODEL=$HAIKU_MODEL"
+debug "TIMEOUT_MS=$TIMEOUT_MS"
+debug "AUTO_COMPACT=$AUTO_COMPACT"
+debug "SAFE_MODE=$SAFE_MODE"
+
+# --- dry-run early exit ------------------------------------------------------
+if [ "$DRY_RUN" = "1" ]; then
+  do_dry_run "${PASSTHROUGH_ARGS[@]}"
+fi
+
+# --- launch ------------------------------------------------------------------
+if ! command -v claude >/dev/null 2>&1; then
+  die "claude CLI not found on PATH.\nInstall Claude Code first: https://docs.claude.com/en/docs/claude-code"
+fi
+
+# Env vars based on official MiMo docs: https://docs.mimo.mi.com/devpack/tool/claude
+export ANTHROPIC_BASE_URL="$BASE_URL"
+export ANTHROPIC_AUTH_TOKEN="$KEY"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="$OPUS_SONNET"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="$OPUS_SONNET"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="$HAIKU_MODEL"
+export ANTHROPIC_MODEL="$OPUS_SONNET"
+export API_TIMEOUT_MS="$TIMEOUT_MS"
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW="$AUTO_COMPACT"
+
+debug "Environment variables set. Launching claude..."
+debug "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL"
+debug "API_TIMEOUT_MS=$API_TIMEOUT_MS"
+
+if [ "$SAFE_MODE" = "1" ]; then
+  say "Running in safe mode (permission prompts enabled)."
+  exec claude "${PASSTHROUGH_ARGS[@]}"
+else
+  exec claude --dangerously-skip-permissions "${PASSTHROUGH_ARGS[@]}"
+fi

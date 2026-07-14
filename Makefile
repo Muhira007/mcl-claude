@@ -7,7 +7,7 @@ lint:
 ifndef SHELLCHECK
 	$(error "shellcheck not found. Install: https://github.com/koalaman/shellcheck")
 endif
-	$(SHELLCHECK) zcl install.sh
+	$(SHELLCHECK) mcl install.sh
 
 # --- Tests -------------------------------------------------------------------
 BATS := $(shell command -v bats 2>/dev/null)
@@ -28,17 +28,17 @@ clean:
 
 # --- Install (local dev) -----------------------------------------------------
 install:
-	cp zcl ~/.local/bin/zcl
-	chmod +x ~/.local/bin/zcl
-	@echo "Installed to ~/.local/bin/zcl"
+	cp mcl ~/.local/bin/mcl
+	chmod +x ~/.local/bin/mcl
+	@echo "Installed to ~/.local/bin/mcl"
 
 # --- Shell completions (local dev) -------------------------------------------
-completions: completions/zcl.bash completions/zcl.zsh completions/zcl.fish
+completions: completions/mcl.bash completions/mcl.zsh completions/mcl.fish
 	@echo "Completions generated."
 
 # --- Version bump ------------------------------------------------------------
 bump:
 	@read -p "New version (e.g. 1.1.0): " v; \
-	sed -i "s/^VERSION=.*/VERSION=\"$$v\"/" zcl; \
-	sed -i "s/Version\s*=\s*'.*'/Version      = '$$v'/" zcl.ps1; \
+	sed -i "s/^VERSION=.*/VERSION=\"$$v\"/" mcl; \
+	sed -i "s/Version\s*=\s*'.*'/Version      = '$$v'/" mcl.ps1; \
 	echo "Version bumped to $$v"

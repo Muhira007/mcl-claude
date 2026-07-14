@@ -1,4 +1,4 @@
-# shellcheck configuration for zcl
+# shellcheck configuration for mcl
 disable=SC2034,SC2155
 
 # Allow common external binaries

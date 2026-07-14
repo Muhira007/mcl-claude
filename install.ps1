@@ -1,20 +1,20 @@
-# zcl — run Claude Code against Z.ai's GLM-5.2 Anthropic-compatible API (Windows).
+# mcl — run Claude Code against MiMo's MiMo-5.2 Anthropic-compatible API (Windows).
 #
 # Key resolution order:
-#   1. `zcl config [KEY]`   — set/replace the stored key (inline or prompt)
+#   1. `mcl config [KEY]`   — set/replace the stored key (inline or prompt)
 #   2. stored config file         — set on a previous run
-#   3. $env:ZAI_API_KEY           — used and saved for next time
+#   3. $env:MCL_API_KEY           — used and saved for next time
 #   4. interactive prompt         — asks for the key if you haven't included it yet
 
 param(
     [string]$Version = "main",
-    [string]$Dest = "$env:LOCALAPPDATA\Programs\zcl"
+    [string]$Dest = "$env:LOCALAPPDATA\Programs\mcl"
 )
 
 $ErrorActionPreference = 'Stop'
 
 $RepoUrl = "https://raw.githubusercontent.com/Muhira007/z-ai-claude/$Version"
-$CmdName = "zcl"
+$CmdName = "mcl"
 
 Write-Host "Installing $CmdName ($Version) to $Dest ..."
 
@@ -27,7 +27,7 @@ $scriptPath = Join-Path $Dest "$CmdName.ps1"
 Write-Host "Downloading $scriptUrl ..."
 Invoke-WebRequest -Uri $scriptUrl -OutFile $scriptPath
 
-# Create a batch wrapper so it's callable as 'zcl' from cmd/terminal
+# Create a batch wrapper so it's callable as 'mcl' from cmd/terminal
 $batchPath = Join-Path $Dest "$CmdName.cmd"
 @"
 @echo off
