@@ -380,7 +380,7 @@ handle_subcommand() {
       ;;
     update|--update|upgrade|--upgrade)
       say "Updating mcl to the latest version..."
-      curl -fsSL "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.sh?v=$(date +%s)" | bash
+      curl -fsSL "https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.sh?v=$(date +%s)" | bash
       exit $?
       ;;
     verify|--verify)
@@ -544,7 +544,7 @@ check_for_updates() {
   
   if command -v curl >/dev/null 2>&1; then
     local remote_ver
-    remote_ver=$(curl -fsSL --max-time 2 "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/VERSION" 2>/dev/null)
+    remote_ver=$(curl -fsSL --max-time 2 "https://raw.githubusercontent.com/Muhira007/mcl-claude/main/VERSION" 2>/dev/null)
     if [ -n "$remote_ver" ] && [ "$remote_ver" != "$VERSION" ] && [[ "$remote_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
       printf "\033[33m\n🚀 New version of Mcl is available (%s)! Run 'mcl update' to install.\n\n\033[0m" "$remote_ver" >&2
     fi

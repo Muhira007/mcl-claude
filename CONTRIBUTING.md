@@ -6,8 +6,8 @@ Terima kasih atas minatmu untuk berkontribusi!
 
 ```bash
 # Clone repo
-git clone https://github.com/Muhira007/z-ai-claude.git
-cd z-ai-claude
+git clone https://github.com/Muhira007/mcl-claude.git
+cd mcl-claude
 
 # Make changes to mcl script
 # ...

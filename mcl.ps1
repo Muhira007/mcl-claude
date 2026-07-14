@@ -341,7 +341,7 @@ function Invoke-Subcommand {
     exit 0
   } elseif ($Cmd -match '^(update|--update|upgrade|--upgrade)$') {
     Write-Say 'Updating mcl to the latest version...'
-    irm "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.ps1?v=$([guid]::NewGuid().ToString().Substring(0, 8))" | iex
+    irm "https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.ps1?v=$([guid]::NewGuid().ToString().Substring(0, 8))" | iex
     exit 0
   } elseif ($Cmd -match '^(verify|--verify)$') {
     $key = Get-Key
@@ -476,7 +476,7 @@ function Check-For-Updates {
       if ((Get-Date) -lt $lastCheck.AddDays(1)) { $check = $false }
     }
     if ($check) {
-      $resp = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/VERSION" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
+      $resp = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Muhira007/mcl-claude/main/VERSION" -UseBasicParsing -TimeoutSec 2 -ErrorAction SilentlyContinue
       if ($resp.StatusCode -eq 200) {
         $remoteVer = $resp.Content.Trim()
         if ($remoteVer -ne $Script:Version -and $remoteVer -match '^\d+\.\d+\.\d+') {

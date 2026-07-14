@@ -13,7 +13,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$RepoUrl = "https://raw.githubusercontent.com/Muhira007/z-ai-claude/$Version"
+$RepoUrl = "https://raw.githubusercontent.com/Muhira007/mcl-claude/$Version"
 $CmdName = "mcl"
 
 Write-Host "Installing $CmdName ($Version) to $Dest ..."

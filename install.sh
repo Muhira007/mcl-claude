@@ -2,7 +2,7 @@
 #
 # mcl installer.
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/Muhira007/z-ai-claude/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.sh | bash
 #
 # Options:
 #   VERSION=v1.0.0  curl ... | VERSION=v1.0.0 bash     # Pin a version
@@ -10,7 +10,7 @@
 #
 set -euo pipefail
 
-REPO="https://raw.githubusercontent.com/Muhira007/z-ai-claude"
+REPO="https://raw.githubusercontent.com/Muhira007/mcl-claude"
 VERSION="${VERSION:-main}"
 CMD_NAME="mcl"
 BIN_DIR="${DEST:-$HOME/.local/bin}"
