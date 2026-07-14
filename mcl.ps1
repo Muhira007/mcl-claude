@@ -311,28 +311,12 @@ function Invoke-Subcommand {
     exit 0
   } elseif ($Cmd -match '^(model|models|--model|--models)$') {
     Write-Say "--- MiMo Models ---"
-    Write-Say "1. mimo-v2.5  (Flagship, 1M context)"
-    Write-Say "2. glm-5.2      (Standard 1M context)"
-    Write-Say "3. glm-5.1      (Previous generation)"
-    Write-Say "4. glm-5        (Standard Gen 5)"
-    Write-Say "5. glm-5-turbo  (High speed)"
-    Write-Say "6. mimo-v2.5      (Fast & cheap, 200K)"
-    Write-Say "7. glm-4.6"
-    Write-Say "8. glm-4.5"
-    Write-Say "9. glm-4-32b-0414-128k"
-    Write-Say "10. MiMo-4.7-Flash (Free, ultra fast)"
-    $choice = Read-Host "Select a model (1-10) [leave blank to cancel]"
+    Write-Say "1. mimo-v2.5-pro              (Text Generation, Deep Thinking, 1M context)"
+    Write-Say "2. mimo-v2.5                  (Full-modal Understanding, 1M context)"
+    $choice = Read-Host "Select a model (1-2) [leave blank to cancel]"
     $model = switch ($choice.Trim()) {
-      '1' { 'mimo-v2.5' }
-      '2' { 'glm-5.2' }
-      '3' { 'glm-5.1' }
-      '4' { 'glm-5' }
-      '5' { 'glm-5-turbo' }
-      '6' { 'mimo-v2.5' }
-      '7' { 'glm-4.6' }
-      '8' { 'glm-4.5' }
-      '9' { 'glm-4-32b-0414-128k' }
-      '10' { 'MiMo-4.7-Flash' }
+      '1' { 'mimo-v2.5-pro' }
+      '2' { 'mimo-v2.5' }
       ''  { Write-Say "Cancelled."; exit 0 }
       default { Write-ErrorX "Invalid choice."; exit 1 }
     }

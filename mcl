@@ -348,29 +348,13 @@ handle_subcommand() {
       ;;
     model|models|--model|--models)
       say "--- MiMo Models ---"
-      say "1. mimo-v2.5  (Flagship, 1M context)"
-      say "2. glm-5.2      (Standard 1M context)"
-      say "3. glm-5.1      (Previous generation)"
-      say "4. glm-5        (Standard Gen 5)"
-      say "5. glm-5-turbo  (High speed)"
-      say "6. mimo-v2.5      (Fast & cheap, 200K)"
-      say "7. glm-4.6"
-      say "8. glm-4.5"
-      say "9. glm-4-32b-0414-128k"
-      say "10. MiMo-4.7-Flash (Free, ultra fast)"
-      printf "Select a model (1-10) [leave blank to cancel]: "
+      say "1. mimo-v2.5-pro              (Text Generation, Deep Thinking, 1M context)"
+      say "2. mimo-v2.5                  (Full-modal Understanding, 1M context)"
+      printf "Select a model (1-2) [leave blank to cancel]: "
       read -r choice
       case "$choice" in
-        1) model="mimo-v2.5" ;;
-        2) model="glm-5.2" ;;
-        3) model="glm-5.1" ;;
-        4) model="glm-5" ;;
-        5) model="glm-5-turbo" ;;
-        6) model="mimo-v2.5" ;;
-        7) model="glm-4.6" ;;
-        8) model="glm-4.5" ;;
-        9) model="glm-4-32b-0414-128k" ;;
-        10) model="MiMo-4.7-Flash" ;;
+        1) model="mimo-v2.5-pro" ;;
+        2) model="mimo-v2.5" ;;
         "") say "Cancelled."; exit 0 ;;
         *) die "Invalid choice." ;;
       esac
