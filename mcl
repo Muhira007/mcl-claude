@@ -22,7 +22,7 @@ DEFAULT_OPUS_SONNET_MODEL="mimo-v2.5"
 DEFAULT_HAIKU_MODEL="mimo-v2.5"
 DEFAULT_TIMEOUT_MS="3000000"        # 50 min — recommended for long-thinking tasks
 DEFAULT_AUTO_COMPACT="1000000"      # 1M — match MiMo-5.2 context window
-DEFAULT_BASE_URL="https://api.mimo.mi.com/v1"
+DEFAULT_BASE_URL="https://api.xiaomimimo.com/anthropic"
 DEFAULT_TOKEN_PLAN_BASE_URL="https://token-plan-sgp.xiaomimimo.com/anthropic"
 
 # --- helpers -----------------------------------------------------------------
@@ -112,7 +112,7 @@ verify_key_api() {
   http_code=$(curl -s -o /dev/null -w "%{http_code}" \
     --max-time 10 \
     -H "Authorization: Bearer ${key}" \
-    "https://api.mimo.mi.com/api/paas/v4/models" 2>/dev/null || echo "000")
+    "https://api.xiaomimimo.com/v1/models" 2>/dev/null || echo "000")
 
   case "$http_code" in
     200) say "✓ API key is valid."; return 0 ;;
@@ -409,7 +409,7 @@ handle_subcommand() {
       local key; key="$(read_key || true)"
       if [ -n "$key" ]; then
         say "✓ API Key is configured."
-        if curl -fsSL -X GET -H "Authorization: Bearer $key" --max-time 10 https://api.mimo.mi.com/api/paas/v4/models >/dev/null 2>&1; then
+        if curl -fsSL -X GET -H "Authorization: Bearer $key" --max-time 10 https://api.xiaomimimo.com/v1/models >/dev/null 2>&1; then
           say "✓ API Key can reach MiMo servers successfully."
         else
           warn "✗ API Key failed validation."

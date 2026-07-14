@@ -99,7 +99,7 @@ function Test-KeyApi {
   param([string]$Key)
   Write-Say 'Verifying API key...'
   try {
-    $resp = Invoke-WebRequest -Uri 'https://api.mimo.mi.com/api/paas/v4/models' `
+    $resp = Invoke-WebRequest -Uri 'https://api.xiaomimimo.com/v1/models' `
       -Headers @{ Authorization = "Bearer $Key" } `
       -Method Get `
       -TimeoutSec 10 `
@@ -268,7 +268,7 @@ function Invoke-DryRun {
   Write-Host ''
   Write-Host 'Would set these environment variables:'
   Write-Host ''
-  Write-Host ('  {0,-36} {1}' -f 'ANTHROPIC_BASE_URL', 'https://api.mimo.mi.com/api/anthropic')
+  Write-Host ('  {0,-36} {1}' -f 'ANTHROPIC_BASE_URL', 'https://api.xiaomimimo.com/anthropic')
   Write-Host ('  {0,-36} {1}' -f 'ANTHROPIC_AUTH_TOKEN', $(if ($key) { "(hidden, $($key.Length) chars)" } else { '(not set)' }))
   Write-Host ('  {0,-36} {1}' -f 'ANTHROPIC_DEFAULT_OPUS_MODEL', $opusSonnet)
   Write-Host ('  {0,-36} {1}' -f 'ANTHROPIC_DEFAULT_SONNET_MODEL', $opusSonnet)
@@ -540,7 +540,7 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
 }
 
 # Env vars based on official MiMo docs: https://docs.mimo.mi.com/devpack/tool/claude
-$env:ANTHROPIC_BASE_URL             = 'https://api.mimo.mi.com/api/anthropic'
+$env:ANTHROPIC_BASE_URL             = 'https://api.xiaomimimo.com/anthropic'
 $env:ANTHROPIC_AUTH_TOKEN           = $key
 $env:ANTHROPIC_DEFAULT_OPUS_MODEL   = $opusSonnet
 $env:ANTHROPIC_DEFAULT_SONNET_MODEL = $opusSonnet
