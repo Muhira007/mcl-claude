@@ -27,14 +27,16 @@ Pastikan Anda sudah menginstal [Claude Code](https://docs.claude.com/en/docs/cla
 ### 🍎 macOS / 🐧 Linux
 Jalankan perintah ini di terminal Anda:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.sh | bash
+curl -fsSL "https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.sh?v=$(date +%s)" | bash
 ```
 
 ### 🪟 Windows (PowerShell)
 Buka PowerShell (disarankan Run as Administrator) lalu eksekusi:
 ```powershell
-irm https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.ps1 | iex
+irm "https://raw.githubusercontent.com/Muhira007/mcl-claude/main/install.ps1?$([guid]::NewGuid())" | iex
 ```
+
+> 💡 **Anti-Cache**: Query string `?v=...` (Linux) dan `?<random-guid>` (Windows) memastikan Anda selalu mengunduh versi terbaru, melewati cache CDN GitHub.
 
 ---
 
@@ -85,7 +87,7 @@ Mcl mengekspor variabel ini ➜ Claude CLI membacanya ➜ Request dikirim ke MiM
 ```
 
 Variabel yang diubah mencakup:
-- `ANTHROPIC_BASE_URL` (Diatur dinamis ke `https://api.mimo.mi.com/v1` atau `https://token-plan-sgp.xiaomimimo.com/anthropic` bergantung pada jenis key Anda).
+- `ANTHROPIC_BASE_URL` (Diatur dinamis ke `https://api.xiaomimimo.com/anthropic` atau `https://token-plan-sgp.xiaomimimo.com/anthropic` bergantung pada jenis key Anda).
 - `ANTHROPIC_AUTH_TOKEN` (API Key Anda)
 - `ANTHROPIC_DEFAULT_OPUS_MODEL`, `SONNET`, `HAIKU` (Diubah menjadi `mimo-v2.5`)
 - `API_TIMEOUT_MS` (Diatur hingga 50 menit guna menunjang tugas _long-thinking_ dan konteks masif)
